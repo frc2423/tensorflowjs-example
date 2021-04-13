@@ -8,13 +8,12 @@ import * as cocoSsd from '@tensorflow-models/coco-ssd';
 
 import { html, css, LitElement } from 'lit-element';
 
-const IMAGE_SIZE = 500;
 
-const setupVideoStream = async (video) => {
+const setupVideoStream = async (video, imageSize) => {
   const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
   video.srcObject = stream;
-  video.width = IMAGE_SIZE;
-  video.height = IMAGE_SIZE;
+  video.width = imageSize;
+  video.height = imageSize;
 };
 
 const waitForVideoLoad = (video) => {
@@ -40,19 +39,29 @@ class TensorFlowExample extends LitElement {
 
   static get properties() {
     return {
-      predictions: { type: Array, attribute: false }
+      predictions: { type: Array, attribute: false },
+      robotStream: { type: String, attribute: 'robot-stream' },
+      imageSize: { type: Number, attribute: 'image-size' },
     };
   }
 
   constructor() {
     super();
     this.predictions = [];
+    this.robotStream = '';
+    this.imageSize = 500;
   }
 
   async firstUpdated() {
-    const video = this.shadowRoot.getElementById("webcam");
-    await setupVideoStream(video);
-    await waitForVideoLoad(video);
+
+    const video = this.robotStream ?
+      this.shadowRoot.getElementById('robot-stream')
+      : this.shadowRoot.getElementById("webcam");
+
+    if (!this.robotStream) {
+      await setupVideoStream(video, this.imageSize);
+      await waitForVideoLoad(video);
+    }
   
     // Load the model.
     console.log('Loading model...');
@@ -74,7 +83,11 @@ class TensorFlowExample extends LitElement {
 
   render() {
     return html`
-      <video autoplay id="webcam" width="500" height="500"></video>
+      ${this.robotStream ? html`
+        <img id="robot-stream" src="${this.robotStream}" crossorigin="anonymous" />
+      `: html`
+        <video autoplay id="webcam" width="${this.imageSize}" height="${this.imageSize}"></video>
+      `}
       ${this.predictions.map(prediction => html`
         <p>${prediction.class}: ${prediction.score}</p>
       `)}
