@@ -1,19 +1,13 @@
 import { browser, dispose } from '@tensorflow/tfjs';
-
-// Note: Require the cpu and webgl backend and add them to package.json as peer dependencies.
 import '@tensorflow/tfjs-backend-cpu';
 import '@tensorflow/tfjs-backend-webgl';
-
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
-
 import { html, css, LitElement } from 'lit-element';
+import { styleMap } from 'lit-html/directives/style-map';
 
-
-const setupVideoStream = async (video, imageSize) => {
+const setupVideoStream = async (video) => {
   const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
   video.srcObject = stream;
-  video.width = imageSize;
-  video.height = imageSize;
 };
 
 const waitForVideoLoad = (video) => {
@@ -33,7 +27,26 @@ class TensorFlowExample extends LitElement {
 
   static get styles() {
     return css`
-    
+
+      :host {
+        width: 500px;
+        position: relative;
+        display: inline-block;
+      }
+
+      [part="video-container"] {
+        position: relative;
+        width: 100%;
+        display: inline-block;
+        overflow: hidden;
+      }
+
+      img, video {
+        position: relative;
+        display: block;
+        width: 100%;
+      }
+
     `;
   }
 
@@ -41,7 +54,8 @@ class TensorFlowExample extends LitElement {
     return {
       predictions: { type: Array, attribute: false },
       robotStream: { type: String, attribute: 'robot-stream' },
-      imageSize: { type: Number, attribute: 'image-size' },
+      elementWidth: { type: Number, attribute: false },
+      tensorWidth: { type: Number, attribute: false },
     };
   }
 
@@ -49,17 +63,30 @@ class TensorFlowExample extends LitElement {
     super();
     this.predictions = [];
     this.robotStream = '';
-    this.imageSize = 500;
+    this.elementWidth = 0;
+    this.tensorWidth = 0;
+  }
+
+  observeResize() {
+    this.elementWidth = this.getBoundingClientRect().width;
+
+    const resizeObserver = new ResizeObserver(() => {
+     this.elementWidth = this.getBoundingClientRect().width;
+    });
+
+    resizeObserver.observe(this);
   }
 
   async firstUpdated() {
+
+    this.observeResize();
 
     const video = this.robotStream ?
       this.shadowRoot.getElementById('robot-stream')
       : this.shadowRoot.getElementById("webcam");
 
     if (!this.robotStream) {
-      await setupVideoStream(video, this.imageSize);
+      await setupVideoStream(video);
       await waitForVideoLoad(video);
     }
   
@@ -70,6 +97,7 @@ class TensorFlowExample extends LitElement {
   
     const getImageAndPredict = async () => {
       const img = await browser.fromPixelsAsync(video);
+      this.tensorWidth = img.shape[1];
       this.predictions = await model.detect(img);
       dispose(img);
 
@@ -82,12 +110,31 @@ class TensorFlowExample extends LitElement {
   }
 
   render() {
+
+    const elementTensorSizeRatio = (!this.elementWidth || !this.tensorWidth) ? 0 : this.elementWidth / this.tensorWidth;
+
     return html`
-      ${this.robotStream ? html`
-        <img id="robot-stream" src="${this.robotStream}" crossorigin="anonymous" />
-      `: html`
-        <video autoplay id="webcam" width="${this.imageSize}" height="${this.imageSize}"></video>
-      `}
+      <div part="video-container">
+        ${this.robotStream ? html`
+          <img id="robot-stream" src="${this.robotStream}" crossorigin="anonymous" />
+        `: html`
+          <video autoplay id="webcam"></video>
+        `}
+        ${this.predictions.map(({ bbox }) => {
+          const [left, top, width, height] = bbox;
+          const boxStyles = { 
+            left: `${left * elementTensorSizeRatio}px`, 
+            top: `${top * elementTensorSizeRatio}px`, 
+            width: `${width * elementTensorSizeRatio}px`, 
+            height: `${height * elementTensorSizeRatio}px`,
+            position: 'absolute',
+            border: '2px solid green'
+          };
+          return html`
+            <div style="${styleMap(boxStyles)}"></div>
+          `;
+        })}
+      </div>
       ${this.predictions.map(prediction => html`
         <p>${prediction.class}: ${prediction.score}</p>
       `)}
