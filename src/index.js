@@ -1,10 +1,12 @@
-import { browser } from '@tensorflow/tfjs';
+import { browser, dispose } from '@tensorflow/tfjs';
 
 // Note: Require the cpu and webgl backend and add them to package.json as peer dependencies.
 import '@tensorflow/tfjs-backend-cpu';
 import '@tensorflow/tfjs-backend-webgl';
 
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
+
+import { html, css, LitElement } from 'lit-element';
 
 const IMAGE_SIZE = 500;
 
@@ -27,32 +29,57 @@ const waitForVideoLoad = (video) => {
   });
 };
 
-(async () => {
 
-  const video = document.getElementById("webcam");
-  await setupVideoStream(video);
-  await waitForVideoLoad(video);
+class TensorFlowExample extends LitElement {
 
-  // Load the model.
-  console.log('Loading model...');
-  const model = await cocoSsd.load();
-  console.log('Model loaded');
+  static get styles() {
+    return css`
+    
+    `;
+  }
 
+  static get properties() {
+    return {
+      predictions: { type: Array, attribute: false }
+    };
+  }
 
-  const getImageAndPredict = async () => {
-    const img = await browser.fromPixelsAsync(video);
-    const predictions = await model.detect(img);
+  constructor() {
+    super();
+    this.predictions = [];
+  }
 
-    if (predictions.length > 0) {
-      const [prediction] = predictions;
-      console.log('prediction:', prediction.class, prediction.score);
-    }
+  async firstUpdated() {
+    const video = this.shadowRoot.getElementById("webcam");
+    await setupVideoStream(video);
+    await waitForVideoLoad(video);
+  
+    // Load the model.
+    console.log('Loading model...');
+    const model = await cocoSsd.load();
+    console.log('Model loaded');
+  
+    const getImageAndPredict = async () => {
+      const img = await browser.fromPixelsAsync(video);
+      this.predictions = await model.detect(img);
+      dispose(img);
 
-    setTimeout(async () => {
-      getImageAndPredict();
-    }, 50);
+      setTimeout(async () => {
+        getImageAndPredict();
+      }, 50);
+    };
+  
+    getImageAndPredict();
+  }
+
+  render() {
+    return html`
+      <video autoplay id="webcam" width="500" height="500"></video>
+      ${this.predictions.map(prediction => html`
+        <p>${prediction.class}: ${prediction.score}</p>
+      `)}
+    `;
   };
+}
 
-  getImageAndPredict();
-
-})();
+customElements.define('tensorflow-example', TensorFlowExample);

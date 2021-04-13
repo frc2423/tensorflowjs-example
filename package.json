@@ -36,6 +36,7 @@
     "@tensorflow-models/coco-ssd": "^2.2.1",
     "@tensorflow/tfjs": "^3.3.0",
     "@tensorflow/tfjs-backend-cpu": "^3.3.0",
-    "@tensorflow/tfjs-backend-webgl": "^3.3.0"
+    "@tensorflow/tfjs-backend-webgl": "^3.3.0",
+    "lit-element": "^2.4.0"
   }
 }
