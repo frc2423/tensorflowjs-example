@@ -5,6 +5,9 @@ import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import { html, css, LitElement } from 'lit-element';
 import { styleMap } from 'lit-html/directives/style-map';
 
+const BOX_COLORS = ['#45f574', '#6275f0', '#f28377', '#ed80e2', '#edc879',  '#f7f37c'];
+const BOX_BORDER_WIDTH = 2;
+
 const setupVideoStream = async (video) => {
   const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
   video.srcObject = stream;
@@ -120,18 +123,35 @@ class TensorFlowExample extends LitElement {
         `: html`
           <video autoplay id="webcam"></video>
         `}
-        ${this.predictions.map(({ bbox }) => {
-          const [left, top, width, height] = bbox;
+        ${this.predictions.map((prediction, index) => {
+          const color = BOX_COLORS[index % BOX_COLORS.length];
+          const [left, top, width, height] = prediction.bbox;
           const boxStyles = { 
             left: `${left * elementTensorSizeRatio}px`, 
             top: `${top * elementTensorSizeRatio}px`, 
             width: `${width * elementTensorSizeRatio}px`, 
             height: `${height * elementTensorSizeRatio}px`,
             position: 'absolute',
-            border: '2px solid green'
+            border: `${BOX_BORDER_WIDTH}px solid ${color}`,
+            boxSizing: 'border-box'
+          };
+          const boxLabelStyles = {
+            position: 'absolute',
+            background: color,
+            color: 'black',
+            height: '20px',
+            lineHeight: '20px',
+            padding: '0 5px',
+            top: '-20px',
+            left: `-${BOX_BORDER_WIDTH}px`,
+            whiteSpace: 'nowrap'
           };
           return html`
-            <div style="${styleMap(boxStyles)}"></div>
+            <div style="${styleMap(boxStyles)}">
+              <div style="${styleMap(boxLabelStyles)}">
+                ${prediction.class}: ${(prediction.score * 100).toFixed(0)}%
+              </div>
+            </div>
           `;
         })}
       </div>
