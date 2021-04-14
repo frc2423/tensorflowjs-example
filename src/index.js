@@ -35,6 +35,7 @@ class TensorFlowExample extends LitElement {
         width: 500px;
         position: relative;
         display: inline-block;
+        font-family: sans-serif;
       }
 
       [part="video-container"] {
@@ -144,7 +145,8 @@ class TensorFlowExample extends LitElement {
             padding: '0 5px',
             top: '-20px',
             left: `-${BOX_BORDER_WIDTH}px`,
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            fontWeight: 'bold',
           };
           return html`
             <div style="${styleMap(boxStyles)}">
