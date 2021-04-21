@@ -1,4 +1,4 @@
-import { browser, dispose } from '@tensorflow/tfjs';
+import { browser, dispose, loadGraphModel, loadLayersModel, cast } from '@tensorflow/tfjs';
 import '@tensorflow/tfjs-backend-cpu';
 import '@tensorflow/tfjs-backend-webgl';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
@@ -60,6 +60,7 @@ class TensorFlowExample extends LitElement {
       robotStream: { type: String, attribute: 'robot-stream' },
       elementWidth: { type: Number, attribute: false },
       tensorWidth: { type: Number, attribute: false },
+      modelUrl: { type: String, attribute: 'model-url' },
     };
   }
 
@@ -69,6 +70,7 @@ class TensorFlowExample extends LitElement {
     this.robotStream = '';
     this.elementWidth = 0;
     this.tensorWidth = 0;
+    this.modelUrl = '';
   }
 
   observeResize() {
@@ -93,16 +95,54 @@ class TensorFlowExample extends LitElement {
       await setupVideoStream(video);
       await waitForVideoLoad(video);
     }
-  
+
     // Load the model.
     console.log('Loading model...');
-    const model = await cocoSsd.load();
+
+    const model = !this.modelUrl 
+      ? await cocoSsd.load()
+      : await loadGraphModel(this.modelUrl);
+
     console.log('Model loaded');
-  
+
     const getImageAndPredict = async () => {
-      const img = await browser.fromPixelsAsync(video);
+      
+      let img = await browser.fromPixelsAsync(video);
       this.tensorWidth = img.shape[1];
-      this.predictions = await model.detect(img);
+
+
+      if (!this.modelUrl) {
+
+        this.predictions = await model.detect(img);
+
+      
+      } else {
+        // const tensor = img.reshape([1, 480, 640, 3]);
+        const tensor = img.expandDims(0);
+
+        // const tensor2 = tensor.slice([0, 0, 0, 0], [0, 224, 224, 3])
+        // const tensor3 = cast(tensor2, 'float32');
+
+
+
+        const output = await model.executeAsync(tensor);
+
+        const scores = output[0].dataSync();
+        const boxes = output[1].dataSync();
+        
+
+        console.log('shape:', output[0].shape, output[1].shape);
+        // console.log('tensors:', scores, boxes);
+
+        // console.log('output:', output, output[0].print());
+
+        // const boxes = output[0].dataSync()
+        // const scores = output[1].arraySync()
+        // const classes = output[2].dataSync()
+
+        dispose(tensor);
+      }
+
       dispose(img);
 
       setTimeout(async () => {
@@ -115,7 +155,7 @@ class TensorFlowExample extends LitElement {
 
   render() {
 
-    const elementTensorSizeRatio = (!this.elementWidth || !this.tensorWidth) ? 0 : this.elementWidth / this.tensorWidth;
+    const element2TensorSizeRatio = (!this.elementWidth || !this.tensorWidth) ? 0 : this.elementWidth / this.tensorWidth;
 
     return html`
       <div part="video-container">
@@ -128,10 +168,10 @@ class TensorFlowExample extends LitElement {
           const color = BOX_COLORS[index % BOX_COLORS.length];
           const [left, top, width, height] = prediction.bbox;
           const boxStyles = { 
-            left: `${left * elementTensorSizeRatio}px`, 
-            top: `${top * elementTensorSizeRatio}px`, 
-            width: `${width * elementTensorSizeRatio}px`, 
-            height: `${height * elementTensorSizeRatio}px`,
+            left: `${left * element2TensorSizeRatio}px`, 
+            top: `${top * element2TensorSizeRatio}px`, 
+            width: `${width * element2TensorSizeRatio}px`, 
+            height: `${height * element2TensorSizeRatio}px`,
             position: 'absolute',
             border: `${BOX_BORDER_WIDTH}px solid ${color}`,
             boxSizing: 'border-box'
